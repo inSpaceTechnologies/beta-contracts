@@ -203,12 +203,12 @@ class filespace : public contract {
          eosio_assert(iterator != folder_table.end(), "Folder id does not exist!");
 
          /** make sure there are no child folders **/
-         auto folders_by_parent = folder_table.get_index<N(byparent)>();
+         auto folders_by_parent = folder_table.get_index<N(by_parent)>();
          auto folder_iterator = folders_by_parent.find(id);
          eosio_assert(folder_iterator == folders_by_parent.end(), "Folder is not empty!");
 
          /** make sure there are no child files **/
-         auto files_by_parent = file_table.get_index<N(byparent)>();
+         auto files_by_parent = file_table.get_index<N(by_parent)>();
          auto file_iterator = files_by_parent.find(id);
          eosio_assert(file_iterator == files_by_parent.end(), "Folder is not empty!");
 
@@ -228,7 +228,7 @@ class filespace : public contract {
          eosio_assert(iterator != file_table.end(), "File id does not exist!");
 
          /** delete all versions **/
-         auto versions_by_file = version_table.get_index<N(byfile)>();
+         auto versions_by_file = version_table.get_index<N(by_file)>();
          auto version_iterator = versions_by_file.find(id);
          while (version_iterator != versions_by_file.end()) {
             version_iterator = versions_by_file.erase(version_iterator);
@@ -312,21 +312,21 @@ class filespace : public contract {
       */
       typedef multi_index<N(folders),
                           folder_record,
-                          indexed_by<N(byparent), /** secondary index on parent **/
+                          indexed_by<N(by_parent), /** secondary index on parent **/
                                      const_mem_fun<folder_record, uint64_t, &folder_record::get_parent>
                                     >
                          > folder_table_type;
 
       typedef multi_index<N(files),
                           file_record,
-                          indexed_by<N(byparent), /** secondary index on parent **/
+                          indexed_by<N(by_parent), /** secondary index on parent **/
                                      const_mem_fun<file_record, uint64_t, &file_record::get_parent>
                                     >
                          > file_table_type;
 
       typedef multi_index<N(versions),
                           version_record,
-                          indexed_by<N(byfile), /** secondary index on file **/
+                          indexed_by<N(by_file), /** secondary index on file **/
                                      const_mem_fun<version_record, uint64_t, &version_record::get_file>
                                      >
                          > version_table_type;
