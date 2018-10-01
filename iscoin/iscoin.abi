@@ -29,6 +29,20 @@
         {"name":"memo", "type":"string"}
      ]
   },{
+      "name": "addstake",
+      "base": "",
+      "fields": [
+        {"name":"staker", "type":"account_name"},
+        {"name":"quantity", "type":"asset"},
+        {"name":"duration", "type":"uint32"}
+      ]
+    },{
+      "name": "updatestakes",
+      "base": "",
+      "fields": [
+        {"name":"symbolname", "type":"string"},
+      ]
+    },{
       "name": "account",
       "base": "",
       "fields": [
@@ -41,6 +55,25 @@
         {"name":"supply", "type":"asset"},
         {"name":"max_supply", "type":"asset"},
         {"name":"issuer", "type":"account_name"}
+      ]
+    },
+    {
+      "name": "stake",
+      "base": "",
+      "fields": [
+        {"name":"key", "type":"uint64"},
+        {"name":"quantity", "type":"asset"},
+        {"name":"start", "type":"time_point_sec"}
+        {"name":"duration", "type":"uint32"}
+      ]
+    },
+    {
+      "name": "stake_stat",
+      "base": "",
+      "fields": [
+        {"name":"staker", "type":"account_name"}
+        {"name":"total_stake", "type":"asset"},
+        {"name":"stake_weight", "type":"int64"}
       ]
     }
   ],
@@ -55,6 +88,14 @@
     }, {
       "name": "create",
       "type": "create",
+      "ricardian_contract": ""
+    }, {
+      "name": "addstake",
+      "type": "addstake",
+      "ricardian_contract": ""
+    },{
+      "name": "updatestakes",
+      "type": "updatestakes",
       "ricardian_contract": ""
     }
 
@@ -71,6 +112,18 @@
       "index_type": "i64",
       "key_names" : ["currency"],
       "key_types" : ["uint64"]
+    },{
+      "name": "stakes",
+      "type": "stake",
+      "index_type": "i64",
+      "key_names" : ["id"],
+      "key_types" : ["uint64"]
+    },{
+      "name": "stakestats",
+      "type": "stake_stat",
+      "index_type": "i64",
+      "key_names" : ["staker"],
+      "key_types" : ["account_name"]
     }
   ],
   "ricardian_clauses": [],
