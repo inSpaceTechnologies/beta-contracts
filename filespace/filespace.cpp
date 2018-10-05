@@ -192,6 +192,30 @@ class filespace : public contract {
       }
 
       // @abi action
+      void addlike(account_name user, uint64_t id, account_name liked, uint64_t version) {
+         like_table_type like_table(_self, _self);
+
+         require_auth(user);
+
+         /** check whether the id exists **/
+         auto like_iterator = like_table.find(id);
+         eosio_assert(like_iterator == like_table.end(), "Like id exists!");
+
+         /** check whether version exists **/
+         version_table_type version_table(_self, liked);
+         auto version_iterator = version_table.find(version);
+         eosio_assert(version_iterator != version_table.end(), "Version does not exist!");
+
+         /** add the record **/
+         like_table.emplace(_self, [&](auto& like_record) {
+             like_record.id = id;
+             like_record.liker = user;
+             like_record.liked = liked;
+             like_record.version = version;
+         });
+      }
+
+      // @abi action
       void deletefolder(account_name user, uint64_t id) {
          require_auth(user);
 
@@ -236,6 +260,23 @@ class filespace : public contract {
 
          /** delete the file itself **/
          file_table.erase(iterator);
+      }
+
+      // @abi action
+      void deletelike(account_name user, uint64_t id) {
+         like_table_type like_table(_self, _self);
+
+         require_auth(user);
+
+         /** get the like and make sure it exists **/
+         auto iterator = like_table.find(id);
+         eosio_assert(iterator != like_table.end(), "Like id does not exist!");
+
+         /** make sure it's the user's like **/
+         eosio_assert((*iterator).liker == user, "Can't remove somebody else's like!");
+
+         /** delete the like **/
+         like_table.erase(iterator);
       }
 
    private:
@@ -305,6 +346,18 @@ class filespace : public contract {
          EOSLIB_SERIALIZE(version_record, (id)(ipfs_hash)(sha256)(date)(file))
       };
 
+      // @abi table likes
+      struct like_record {
+         uint64_t id;
+         account_name liker;
+         account_name liked;
+         uint64_t version;
+
+         auto primary_key() const { return id; }
+
+         EOSLIB_SERIALIZE(like_record, (id)(liker)(liked)(version))
+      };
+
       /*
 
       multi-index tables
@@ -331,8 +384,10 @@ class filespace : public contract {
                                      >
                          > version_table_type;
 
-      /** can't do this here, because it needs to be in the particular user's scope **/
-      // folder_table_type folder_table(_self, user);
+      typedef multi_index<N(likes),
+                          like_record
+                         > like_table_type;
+
 };
 
-EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile))
+EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike))
