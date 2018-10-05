@@ -92,12 +92,13 @@ namespace eosio {
          int64_t get_stake_weight( account_name owner, eosio::symbol_type sym )const;
          asset get_unstaked_balance( account_name owner, eosio::symbol_type sym )const;
          int64_t distribute( asset quantity );
+         int64_t distribute_likes( asset quantity );
 
          const float transaction_fee = 0.01; // 1%
 
          const float transaction_fee_to_stakers = 0.7f; // 70%
-         //const float transaction_fee_to_likes = 0.0f;
-         // inSpace gets the rest
+         const float transaction_fee_to_likes = 0.15f; // 15%
+         // inSpace gets the rest (15%)
          const account_name inspace_account = N(inspace);
 
          static const size_t stake_count = 5;
@@ -121,6 +122,21 @@ namespace eosio {
 
          const uint32_t update_interval = ONE_MINUTE;
 
+         // this is from the filespace contract
+         // TODO; factor into a common hpp file
+         struct like_record {
+            uint64_t id;
+            account_name liker;
+            account_name liked;
+            uint64_t version;
+
+            auto primary_key() const { return id; }
+
+            EOSLIB_SERIALIZE(like_record, (id)(liker)(liked)(version))
+         };
+         typedef multi_index<N(likes),
+                             like_record
+                            > like_table_type;
       public:
          struct transfer_args {
             account_name  from;

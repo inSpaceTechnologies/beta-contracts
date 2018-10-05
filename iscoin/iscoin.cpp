@@ -233,14 +233,22 @@ void token::sub_balance( account_name owner, asset value, bool no_fee ) {
       return;
    }
 
+   int64_t transaction_fee_remaining = transaction_fee_amount;
    const int64_t transaction_fee_stakers_amount = (int64_t)(transaction_fee_to_stakers * transaction_fee_amount);
    asset transaction_fee_stakers_asset;
    transaction_fee_stakers_asset.symbol = symbol;
    transaction_fee_stakers_asset.amount = transaction_fee_stakers_amount;
 
-   int64_t amount_distributed = distribute(transaction_fee_stakers_asset);
+   transaction_fee_remaining -= distribute(transaction_fee_stakers_asset);
 
-   const int64_t transaction_fee_inspace_amount = transaction_fee_amount - amount_distributed;
+   const int64_t transaction_fee_likes_amount = (int64_t)(transaction_fee_to_likes * transaction_fee_amount);
+   asset transaction_fee_likes_asset;
+   transaction_fee_likes_asset.symbol = symbol;
+   transaction_fee_likes_asset.amount = transaction_fee_likes_amount;
+
+   transaction_fee_remaining -= distribute_likes(transaction_fee_likes_asset);
+
+   const int64_t transaction_fee_inspace_amount = transaction_fee_remaining;
    if (transaction_fee_inspace_amount > 0) {
       asset transaction_fee_inspace_asset;
       transaction_fee_inspace_asset.symbol = symbol;
@@ -298,7 +306,7 @@ asset token::get_unstaked_balance( account_name owner, eosio::symbol_type sym )c
    return asset(balance.amount - stake.amount, sym);
 }
 
-// distributes the quantity amongst stakets by stake weight.
+// distributes the quantity amongst stakers by stake weight.
 // returns the actual amount distruted.
 int64_t token::distribute( asset quantity )
 {
@@ -342,6 +350,67 @@ int64_t token::distribute( asset quantity )
 
       add_balance( staker, amount_asset, _self);
       amount_distributed += amount_for_staker;
+   }
+
+   return amount_distributed;
+}
+
+// distributes the quantity amongst likes by stake weight.
+// returns the actual amount distruted.
+int64_t token::distribute_likes( asset quantity )
+{
+   like_table_type like_table(N(filespace), N(filespace));
+   stake_stats stake_stats_table( _self, quantity.symbol.name() );
+
+   std::map<account_name, int64_t> liked_weights;
+   int64_t total_weight = 0;
+
+   // iterate through likes
+   for (auto iterator = like_table.begin(); iterator != like_table.end(); ++iterator) {
+
+      const account_name liked = (*iterator).liked;
+
+      // get stake weight of liker
+      const auto staker_stake_stats = stake_stats_table.find( (*iterator).liker );
+
+      if (staker_stake_stats == stake_stats_table.end()) {
+         // no stake
+         liked_weights[liked] = 0;
+         continue;
+      }
+
+      const int64_t likerWeight = (*staker_stake_stats).stake_weight;
+
+      if (liked_weights.count(liked) == 0) {
+         liked_weights[liked] = likerWeight;
+      } else {
+         liked_weights[liked] += likerWeight;
+      }
+
+      total_weight += likerWeight;
+   }
+
+   if (total_weight == 0) {
+      return 0;
+   }
+
+   int64_t amount_distributed = 0;
+
+   for (std::map<account_name, int64_t>::iterator iterator = liked_weights.begin(); iterator != liked_weights.end(); ++iterator) {
+
+      account_name liked = iterator->first;
+      int64_t weight = iterator->second;
+
+      float proportion = (float)weight / total_weight;
+
+      int64_t amount_for_liked = (int64_t)(quantity.amount  * proportion);
+
+      asset amount_asset;
+      amount_asset.symbol = quantity.symbol;
+      amount_asset.amount = amount_for_liked;
+
+      add_balance( liked, amount_asset, _self);
+      amount_distributed += amount_for_liked;
    }
 
    return amount_distributed;
