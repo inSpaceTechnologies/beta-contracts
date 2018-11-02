@@ -30,6 +30,9 @@ class filespace : public contract {
             eosio_assert(iterator != folder_table.end(), "Parent folder does not exist!");
          }
 
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, name, parent_folder), "Name exists!");
+
          /** add the record **/
          folder_table.emplace(_self, [&](auto& folder_record) {
             folder_record.id = id;
@@ -47,6 +50,9 @@ class filespace : public contract {
          /** make sure the id exists **/
          auto iterator = folder_table.find(id);
          eosio_assert(iterator != folder_table.end(), "Folder id does not exist!");
+
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, new_name, (*iterator).parent_folder), "Name exists!");
 
          /** modify the record **/
          folder_table.modify(iterator, _self, [&](auto& folder_record) {
@@ -69,6 +75,9 @@ class filespace : public contract {
          /** make sure the id exists **/
          auto iterator = folder_table.find(id);
          eosio_assert(iterator != folder_table.end(), "Folder id does not exist!");
+
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, (*iterator).name, new_parent_folder), "Name exists!");
 
          /** modify the record **/
          folder_table.modify(iterator, _self, [&](auto& folder_record) {
@@ -96,6 +105,9 @@ class filespace : public contract {
          /** make sure the version is valid **/
          eosio_assert(version_valid(user, current_version, id), "Version is not valid!");
 
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, name, parent_folder), "Name exists!");
+
          /** add the record **/
          file_table.emplace(_self, [&](auto& file_record) {
             file_record.id = id;
@@ -114,6 +126,9 @@ class filespace : public contract {
          /** make sure the id exists **/
          auto iterator = file_table.find(id);
          eosio_assert(iterator != file_table.end(), "File id does not exist!");
+
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, new_name, (*iterator).parent_folder), "Name exists!");
 
          /** modify the record **/
          file_table.modify(iterator, _self, [&](auto& file_record) {
@@ -137,6 +152,9 @@ class filespace : public contract {
          /** make sure the id exists **/
          auto iterator = file_table.find(id);
          eosio_assert(iterator != file_table.end(), "File id does not exist!");
+
+         /** make sure the name is valid **/
+         eosio_assert(!name_exists(user, (*iterator).name, new_parent_folder), "Name exists!");
 
          /** modify the record **/
          file_table.modify(iterator, _self, [&](auto& file_record) {
@@ -300,6 +318,31 @@ class filespace : public contract {
          }
 
          return true;
+      }
+
+      /** returns false if a file or folder with the name already exists in the given folder **/
+      bool name_exists(account_name user, string name, uint64_t folder_id) {
+         folder_table_type folder_table(_self, user);
+         auto folders_by_parent = folder_table.get_index<N(by_parent)>();
+
+         for (auto iterator = folders_by_parent.find(folder_id); iterator != folders_by_parent.end(); ++iterator) {
+            const string this_name = (*iterator).name;
+            if (name == this_name) {
+               return true;
+            }
+         }
+
+         file_table_type file_table(_self, user);
+         auto files_by_parent = file_table.get_index<N(by_parent)>();
+
+         for (auto iterator = files_by_parent.find(folder_id); iterator != files_by_parent.end(); ++iterator) {
+            const string this_name = (*iterator).name;
+            if (name == this_name) {
+               return true;
+            }
+         }
+
+         return false;
       }
 
       /*
