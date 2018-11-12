@@ -183,11 +183,12 @@ class filespace : public contract {
       }
 
       // @abi action
-      void addversion(account_name user, uint64_t id, string ipfs_hash, string sha256, uint64_t date, uint64_t file) {
+      void addversion(account_name user, uint64_t id, string ipfs_hash, string sha256, uint64_t date, uint64_t file, uint64_t key) {
          require_auth(user);
 
          file_table_type file_table(_self, user);
          version_table_type version_table(_self, user);
+         key_table_type key_table(_self, user);
 
          /** check whether the id exists **/
          auto iterator = version_table.find(id);
@@ -199,6 +200,12 @@ class filespace : public contract {
            eosio_assert(iterator != file_table.end(), "File does not exist!");
          }
 
+         /** check whether key exists **/
+         if (key != NULL_ID) {
+           auto iterator = key_table.find(key);
+           eosio_assert(iterator != key_table.end(), "Key does not exist!");
+         }
+
          /** add the record **/
          version_table.emplace(_self, [&](auto& version_record) {
              version_record.id = id;
@@ -206,6 +213,7 @@ class filespace : public contract {
              version_record.sha256 = sha256;
              version_record.date = date;
              version_record.file = file;
+             version_record.key = key;
          });
       }
 
@@ -297,6 +305,49 @@ class filespace : public contract {
          like_table.erase(iterator);
       }
 
+      // @abi action
+      void addkey(account_name user, uint64_t id, string iv) {
+         key_table_type key_table(_self, user);
+
+         require_auth(user);
+
+         /** check whether the id exists **/
+         auto key_iterator = key_table.find(id);
+         eosio_assert(key_iterator == key_table.end(), "Key id exists!");
+
+         /** add the record **/
+         key_table.emplace(_self, [&](auto& key_record) {
+             key_record.id = id;
+             key_record.iv = iv;
+         });
+      }
+
+      // @abi action
+      void addenckey(account_name user, uint64_t id, uint64_t key, string public_key, string iv, string nonce, string value) {
+         enc_key_table_type enc_key_table(_self, user);
+         key_table_type key_table(_self, user);
+
+         require_auth(user);
+
+         /** check whether the id exists **/
+         auto enc_key_iterator = enc_key_table.find(id);
+         eosio_assert(enc_key_iterator == enc_key_table.end(), "Enc key id exists!");
+
+         /** check whether the key id exists **/
+         auto key_iterator = key_table.find(key);
+         eosio_assert(key_iterator != key_table.end(), "Key does not exist!");
+
+         /** add the record **/
+         enc_key_table.emplace(_self, [&](auto& enc_key_record) {
+             enc_key_record.id = id;
+             enc_key_record.key = key;
+             enc_key_record.public_key = public_key;
+             enc_key_record.iv = iv;
+             enc_key_record.nonce = nonce;
+             enc_key_record.value = value;
+         });
+      }
+
    private:
 
       bool version_valid(account_name user, uint64_t id, uint64_t file) {
@@ -382,11 +433,12 @@ class filespace : public contract {
          string sha256;
          uint64_t date;
          uint64_t file;
+         uint64_t key;
 
          auto primary_key() const { return id; }
          uint64_t get_file() const { return file; }
 
-         EOSLIB_SERIALIZE(version_record, (id)(ipfs_hash)(sha256)(date)(file))
+         EOSLIB_SERIALIZE(version_record, (id)(ipfs_hash)(sha256)(date)(file)(key))
       };
 
       // @abi table likes
@@ -399,6 +451,30 @@ class filespace : public contract {
          auto primary_key() const { return id; }
 
          EOSLIB_SERIALIZE(like_record, (id)(liker)(liked)(version))
+      };
+
+      // @abi table keys
+      struct key_record {
+         uint64_t id;
+         string iv;
+
+         auto primary_key() const { return id; }
+
+         EOSLIB_SERIALIZE(key_record, (id)(iv))
+      };
+
+      // @abi table enckeys
+      struct enc_key_record {
+         uint64_t id;
+         uint64_t key;
+         string public_key;
+         string iv;
+         string nonce;
+         string value;
+
+         auto primary_key() const { return id; }
+
+         EOSLIB_SERIALIZE(enc_key_record, (id)(key)(public_key)(iv)(nonce)(value))
       };
 
       /*
@@ -431,6 +507,13 @@ class filespace : public contract {
                           like_record
                          > like_table_type;
 
+      typedef multi_index<N(keys),
+                          key_record
+                         > key_table_type;
+
+      typedef multi_index<N(enckeys),
+                        enc_key_record
+                       > enc_key_table_type;
 };
 
-EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike))
+EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike)(addkey)(addenckey))
