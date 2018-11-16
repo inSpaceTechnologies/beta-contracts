@@ -18,6 +18,8 @@ class friends : public contract {
       void addrequest(account_name user, account_name to) {
          require_auth(user);
 
+         eosio_assert(user != to, "Can't befriend yourself!");
+
          /** make sure a friendship doesn't already exist **/
          auto friendships_by_account1 = friendship_table.get_index<N(by_account1)>();
          bool exists = false;
