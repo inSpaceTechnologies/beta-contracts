@@ -306,6 +306,37 @@ class filespace : public contract {
       }
 
       // @abi action
+      void setprofile(account_name user, string ipfs_hash, uint64_t key) {
+         require_auth(user);
+
+         profile_table_type profile_table(_self, user);
+         key_table_type key_table(_self, user);
+
+         /** check whether key exists **/
+         if (key != NULL_ID) {
+           auto iterator = key_table.find(key);
+           eosio_assert(iterator != key_table.end(), "Key does not exist!");
+         }
+
+         /** check whether profile already exists **/
+         auto iterator = profile_table.find(0);
+         if (iterator == profile_table.end()) {
+            /** profile does not exist. add one. **/
+            profile_table.emplace(_self, [&](auto& profile_record) {
+               profile_record.id = 0;
+               profile_record.ipfs_hash = ipfs_hash;
+               profile_record.key = key;
+            });
+         } else {
+            /** does exist. modify the record **/
+            profile_table.modify(iterator, _self, [&](auto& profile_record) {
+               profile_record.ipfs_hash = ipfs_hash;
+               profile_record.key = key;
+            });
+         }
+      }
+
+      // @abi action
       void addkey(account_name user, uint64_t id, string iv) {
          key_table_type key_table(_self, user);
 
@@ -453,6 +484,17 @@ class filespace : public contract {
          EOSLIB_SERIALIZE(like_record, (id)(liker)(liked)(version))
       };
 
+      // @abi table profiles
+      struct profile_record {
+         uint64_t id;
+         string ipfs_hash;
+         uint64_t key;
+
+         auto primary_key() const { return id; }
+
+         EOSLIB_SERIALIZE(profile_record, (id)(ipfs_hash)(key))
+      };
+
       // @abi table keys
       struct key_record {
          uint64_t id;
@@ -507,6 +549,10 @@ class filespace : public contract {
                           like_record
                          > like_table_type;
 
+      typedef multi_index<N(profiles),
+                          profile_record
+                         > profile_table_type;
+
       typedef multi_index<N(keys),
                           key_record
                          > key_table_type;
@@ -516,4 +562,4 @@ class filespace : public contract {
                        > enc_key_table_type;
 };
 
-EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike)(addkey)(addenckey))
+EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike)(setprofile)(addkey)(addenckey))
