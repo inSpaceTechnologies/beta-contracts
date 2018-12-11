@@ -379,6 +379,38 @@ class filespace : public contract {
          });
       }
 
+   // @abi action
+   void addpost(account_name account, uint64_t id, bool is_folder, uint64_t subject, string caption) {
+      post_table_type post_table(_self, _self);
+      file_table_type file_table(_self, account);
+      folder_table_type folder_table(_self, account);
+
+      require_auth(account);
+
+      /** check whether the id exists **/
+      auto post_iterator = post_table.find(id);
+      eosio_assert(post_iterator == post_table.end(), "Post id exists!");
+
+      /** check whether subject exists **/
+      if (is_folder) {
+         auto folder_iterator = folder_table.find(subject);
+         eosio_assert(folder_iterator != folder_table.end(), "Folder does not exist!");
+      } else {
+         auto file_iterator = file_table.find(subject);
+         eosio_assert(file_iterator != file_table.end(), "File does not exist!");
+      }
+
+      /** add the record **/
+      post_table.emplace(_self, [&](auto& post_record) {
+          post_record.id = id;
+          post_record.account = account;
+          post_record.is_folder = is_folder;
+          post_record.subject = subject;
+          post_record.caption = caption;
+          post_record.date = (uint64_t)now() * 1000;
+      });
+   }
+
    private:
 
       bool version_valid(account_name user, uint64_t id, uint64_t file) {
@@ -519,6 +551,20 @@ class filespace : public contract {
          EOSLIB_SERIALIZE(enc_key_record, (id)(key)(public_key)(iv)(nonce)(value))
       };
 
+      // @abi table posts
+      struct post_record {
+         uint64_t id;
+         account_name account;
+         bool is_folder;
+         uint64_t subject;
+         string caption;
+         uint64_t date;
+
+         auto primary_key() const { return id; }
+
+         EOSLIB_SERIALIZE(post_record, (id)(account)(is_folder)(subject)(caption)(date))
+      };
+
       /*
 
       multi-index tables
@@ -558,8 +604,12 @@ class filespace : public contract {
                          > key_table_type;
 
       typedef multi_index<N(enckeys),
-                        enc_key_record
-                       > enc_key_table_type;
+                          enc_key_record
+                         > enc_key_table_type;
+
+     typedef multi_index<N(posts),
+                         post_record
+                        > post_table_type;
 };
 
-EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike)(setprofile)(addkey)(addenckey))
+EOSIO_ABI(filespace, (addfolder)(renamefolder)(movefolder)(addfile)(renamefile)(movefile)(setcurrentve)(addversion)(deletefolder)(deletefile)(addlike)(deletelike)(setprofile)(addkey)(addenckey)(addpost))
